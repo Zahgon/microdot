@@ -61,28 +61,8 @@ MUTED_SOCKET_ERRORS = [
 ]
 
 
-def urldecode(s):
-    if isinstance(s, str):
-        s = s.encode()
-    s = s.replace(b'+', b' ')
-    parts = s.split(b'%')
-    if len(parts) == 1:
-        return s.decode()
-    result = [parts[0]]
-    for item in parts[1:]:
-        if item == b'':
-            result.append(b'%')
-        else:
-            code = item[:2]
-            result.append(bytes([int(code, 16)]))
-            result.append(item[2:])
-    return b''.join(result).decode()
 
 
-def urlencode(s):
-    return s.replace('+', '%2B').replace(' ', '+').replace(
-        '%', '%25').replace('?', '%3F').replace('#', '%23').replace(
-            '&', '%26').replace('=', '%3D')
 
 
 class NoCaseDict(dict):
@@ -253,12 +233,7 @@ class MultiDict(dict):
             >>> d.getlist('items', type=int)
             [3, 56]
         """
-        if key not in self:
-            return []
-        values = super().__getitem__(key)
-        if type is not None:
-            values = [type(value) for value in values]
-        return values
+        pass
 
 
 class AsyncBytesIO:
@@ -433,45 +408,22 @@ class Request:
                        body=body, stream=stream,
                        sock=(client_reader, client_writer), scheme=scheme)
 
-    def _parse_urlencoded(self, urlencoded):
-        data = MultiDict()
-        if len(urlencoded) > 0:  # pragma: no branch
-            if isinstance(urlencoded, str):
-                for kv in [pair.split('=', 1)
-                           for pair in urlencoded.split('&') if pair]:
-                    data[urldecode(kv[0])] = urldecode(kv[1]) \
-                        if len(kv) > 1 else ''
-            elif isinstance(urlencoded, bytes):  # pragma: no branch
-                for kv in [pair.split(b'=', 1)
-                           for pair in urlencoded.split(b'&') if pair]:
-                    data[urldecode(kv[0])] = urldecode(kv[1]) \
-                        if len(kv) > 1 else b''
-        return data
 
     @property
     def body(self):
         """The body of the request, as bytes."""
-        return self._body
+        pass
 
     @property
     def stream(self):
         """The body of the request, as a bytes stream."""
-        if self._stream is None:
-            self._stream = AsyncBytesIO(self._body)
-        return self._stream
+        pass
 
     @property
     def json(self):
         """The parsed JSON body, or ``None`` if the request does not have a
         JSON body."""
-        if self._json is None:
-            if self.content_type is None:
-                return None
-            mime_type = self.content_type.split(';')[0]
-            if mime_type != 'application/json':
-                return None
-            self._json = json.loads(self.body.decode())
-        return self._json
+        pass
 
     @property
     def form(self):
@@ -484,14 +436,7 @@ class Request:
         :func:`with_form_data <microdot.multipart.with_form_data>`
         decorator must be added to the route.
         """
-        if self._form is None:
-            if self.content_type is None:
-                return None
-            mime_type = self.content_type.split(';')[0]
-            if mime_type != 'application/x-www-form-urlencoded':
-                return None
-            self._form = self._parse_urlencoded(self.body)
-        return self._form
+        pass
 
     @property
     def files(self):
@@ -502,7 +447,7 @@ class Request:
         decorator must be added to the route that receives file uploads for
         this property to be set.
         """
-        return self._files
+        pass
 
     def after_request(self, f):
         """Register a request-specific function to run after the request is
@@ -644,10 +589,7 @@ class Response:
                        Values given for ``expires`` and ``max_age`` are
                        ignored.
         """
-        kwargs.pop('expires', None)
-        kwargs.pop('max_age', None)
-        self.set_cookie(cookie, '', expires='Thu, 01 Jan 1970 00:00:01 GMT',
-                        max_age=0, **kwargs)
+        pass
 
     def complete(self):
         if isinstance(self.body, bytes) and \
@@ -762,9 +704,7 @@ class Response:
         :param status_code: The 3xx status code to use for the redirect. The
                             default is 302.
         """
-        if '\x0d' in location or '\x0a' in location:
-            raise ValueError('invalid redirect URL')
-        return cls(status_code=status_code, headers={'Location': location})
+        pass
 
     @classmethod
     def send_file(cls, filename, status_code=200, content_type=None,
@@ -801,28 +741,7 @@ class Response:
         filenames provided by the user without validating and sanitizing them
         first.
         """
-        if content_type is None:
-            if compressed and filename.endswith('.gz'):
-                ext = filename[:-3].split('.')[-1]
-            else:
-                ext = filename.split('.')[-1]
-            if ext in Response.types_map:
-                content_type = Response.types_map[ext]
-            else:
-                content_type = 'application/octet-stream'
-        headers = {'Content-Type': content_type}
-
-        if max_age is None:
-            max_age = cls.default_send_file_max_age
-        if max_age is not None:
-            headers['Cache-Control'] = 'max-age={}'.format(max_age)
-
-        if compressed:
-            headers['Content-Encoding'] = compressed \
-                if isinstance(compressed, str) else 'gzip'
-
-        f = stream or open(filename + file_extension, 'rb')
-        return cls(body=f, status_code=status_code, headers=headers)
+        pass
 
 
 class URLPattern():
@@ -858,8 +777,7 @@ class URLPattern():
                        value of the segment. If omitted, the value is returned
                        as a string.
         """
-        cls.segment_patterns[type_name] = '/({})'.format(pattern)
-        cls.segment_parsers[type_name] = parser
+        pass
 
     def __init__(self, url_pattern):
         self.url_pattern = url_pattern
@@ -990,11 +908,6 @@ class Microdot:
             def index(request):
                 return 'Hello, world!'
         """
-        def decorated(f):
-            self.url_map.append(
-                ([m.upper() for m in (methods or ['GET'])],
-                 URLPattern(url_pattern), f, '', None))
-            return f
         return decorated
 
     def get(self, url_pattern):
@@ -1031,7 +944,7 @@ class Microdot:
             def create_user(request):
                 # ...
         """
-        return self.route(url_pattern, methods=['POST'])
+        pass
 
     def put(self, url_pattern):
         """Decorator that is used to register a function as a ``PUT`` request
@@ -1049,7 +962,7 @@ class Microdot:
             def edit_user(request, id):
                 # ...
         """
-        return self.route(url_pattern, methods=['PUT'])
+        pass
 
     def patch(self, url_pattern):
         """Decorator that is used to register a function as a ``PATCH`` request
@@ -1067,7 +980,7 @@ class Microdot:
             def edit_user(request, id):
                 # ...
         """
-        return self.route(url_pattern, methods=['PATCH'])
+        pass
 
     def delete(self, url_pattern):
         """Decorator that is used to register a function as a ``DELETE``
@@ -1085,7 +998,7 @@ class Microdot:
             def delete_user(request, id):
                 # ...
         """
-        return self.route(url_pattern, methods=['DELETE'])
+        pass
 
     def before_request(self, f):
         """Decorator to register a function to run before each request is
@@ -1098,8 +1011,7 @@ class Microdot:
             def func(request):
                 # ...
         """
-        self.before_request_handlers.append(f)
-        return f
+        pass
 
     def after_request(self, f):
         """Decorator to register a function to run after each request is
@@ -1156,10 +1068,7 @@ class Microdot:
             def runtime_error(request, exception):
                 return 'Runtime error'
         """
-        def decorated(f):
-            self.error_handlers[status_code_or_exception_class] = f
-            return f
-        return decorated
+        pass
 
     def mount(self, subapp, url_prefix='', local=False):
         """Mount a sub-application, optionally under the given URL prefix.
@@ -1171,23 +1080,7 @@ class Microdot:
                       sub-application. When ``False``, they apply to the entire
                       application. The default is ``False``.
         """
-        for methods, pattern, handler, _prefix, _subapp in subapp.url_map:
-            self.url_map.append(
-                (methods, URLPattern(url_prefix + pattern.url_pattern),
-                 handler, url_prefix + _prefix, _subapp or subapp))
-        if not local:
-            for handler in subapp.before_request_handlers:
-                self.before_request_handlers.append(handler)
-            subapp.before_request_handlers = []
-            for handler in subapp.after_request_handlers:
-                self.after_request_handlers.append(handler)
-            subapp.after_request_handlers = []
-            for handler in subapp.after_error_request_handlers:
-                self.after_error_request_handlers.append(handler)
-            subapp.after_error_request_handlers = []
-            for status_code, handler in subapp.error_handlers.items():
-                self.error_handlers[status_code] = handler
-            subapp.error_handlers = {}
+        pass
 
     @staticmethod
     def abort(status_code, reason=None):
@@ -1257,57 +1150,7 @@ class Microdot:
 
             asyncio.run(main())
         """
-        self.ssl = ssl
-        self.debug = debug
-
-        async def serve(reader, writer):
-            if not hasattr(writer, 'awrite'):  # pragma: no cover
-                # CPython provides the awrite and aclose methods in 3.8+
-                async def awrite(self, data):
-                    self.write(data)
-                    await self.drain()
-
-                async def aclose(self):
-                    self.close()
-                    await self.wait_closed()
-
-                from types import MethodType
-                writer.awrite = MethodType(awrite, writer)
-                writer.aclose = MethodType(aclose, writer)
-
-            await self.handle_request(reader, writer)
-
-        if self.debug:  # pragma: no cover
-            print('Starting async server on {host}:{port}...'.format(
-                host=host, port=port))
-
-        try:
-            self.server = await asyncio.start_server(
-                serve, host, port, ssl=ssl, start_serving=start_serving)
-            if not start_serving:
-                return self.server
-        except TypeError:  # pragma: no cover
-            if not start_serving:
-                raise ValueError('start_serving must be True')
-            try:
-                self.server = await asyncio.start_server(serve, host, port,
-                                                         ssl=ssl)
-            except TypeError:  # pragma: no cover
-                self.server = await asyncio.start_server(serve, host, port)
-
-        while True:
-            try:
-                if hasattr(self.server, 'serve_forever'):  # pragma: no cover
-                    try:
-                        await self.server.serve_forever()
-                    except asyncio.CancelledError:
-                        pass
-                await self.server.wait_closed()
-                break
-            except AttributeError:  # pragma: no cover
-                # the task hasn't been initialized in the server object yet
-                # wait a bit and try again
-                await asyncio.sleep(0.1)
+        pass
 
     def run(self, host='0.0.0.0', port=5000, debug=False, ssl=None):
         """Start the web server. This function does not normally return, as
@@ -1340,8 +1183,7 @@ class Microdot:
 
             app.run(debug=True)
         """
-        asyncio.run(self.start_server(host=host, port=port, debug=debug,
-                                      ssl=ssl))  # pragma: no cover
+        pass
 
     def shutdown(self):
         """Request a server shutdown. The server will then exit its request
@@ -1356,7 +1198,7 @@ class Microdot:
                 request.app.shutdown()
                 return 'The server is shutting down...'
         """
-        self.server.close()
+        pass
 
     def find_route(self, req):
         method = req.method.upper()
@@ -1390,33 +1232,6 @@ class Microdot:
         allow.append('OPTIONS')
         return {'Allow': ', '.join(allow)}
 
-    async def handle_request(self, reader, writer):
-        req = None
-        try:
-            req = await Request.create(self, reader, writer,
-                                       writer.get_extra_info('peername'))
-        except OSError as exc:  # pragma: no cover
-            if exc.errno in MUTED_SOCKET_ERRORS:
-                pass
-            else:
-                raise
-        except Exception as exc:  # pragma: no cover
-            print_exception(exc)
-
-        res = await self.dispatch_request(req)
-        try:
-            if res != Response.already_handled:  # pragma: no branch
-                await res.write(writer)
-            await writer.aclose()
-        except OSError as exc:  # pragma: no cover
-            if exc.errno in MUTED_SOCKET_ERRORS:
-                pass
-            else:
-                raise
-        if self.debug and req:  # pragma: no cover
-            print('{method} {path} {status_code}'.format(
-                method=req.method, path=req.path,
-                status_code=res.status_code))
 
     def get_request_handlers(self, req, attr, local_first=True):
         handlers = getattr(self, attr + '_handlers')

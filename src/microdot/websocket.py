@@ -39,14 +39,6 @@ class WebSocket:
         self.request = request
         self.closed = False
 
-    async def handshake(self):
-        response = self._handshake_response()
-        await self.request.sock[1].awrite(
-            b'HTTP/1.1 101 Switching Protocols\r\n')
-        await self.request.sock[1].awrite(b'Upgrade: websocket\r\n')
-        await self.request.sock[1].awrite(b'Connection: Upgrade\r\n')
-        await self.request.sock[1].awrite(
-            b'Sec-WebSocket-Accept: ' + response + b'\r\n\r\n')
 
     async def receive(self):
         """Receive a message from the client."""
@@ -77,27 +69,6 @@ class WebSocket:
             self.closed = True
             await self.send(b'', self.CLOSE)
 
-    def _handshake_response(self):
-        connection = False
-        upgrade = False
-        websocket_key = None
-        for header, value in self.request.headers.items():
-            h = header.lower()
-            if h == 'connection':
-                connection = True
-                if 'upgrade' not in value.lower():
-                    return self.request.app.abort(400)
-            elif h == 'upgrade':
-                upgrade = True
-                if not value.lower() == 'websocket':
-                    return self.request.app.abort(400)
-            elif h == 'sec-websocket-key':
-                websocket_key = value
-        if not connection or not upgrade or not websocket_key:
-            return self.request.app.abort(400)
-        d = hashlib.sha1(websocket_key.encode())
-        d.update(b'258EAFA5-E914-47DA-95CA-C5AB0DC85B11')
-        return binascii.b2a_base64(d.digest())[:-1]
 
     @classmethod
     def _parse_frame_header(cls, header):
@@ -182,36 +153,9 @@ async def websocket_upgrade(request):
                 message = await ws.receive()
                 await ws.send(message)
     """
-    ws = WebSocket(request)
-    await ws.handshake()
-
-    @request.after_request
-    async def after_request(request, response):
-        return Response.already_handled
-
-    return ws
+    pass
 
 
-def websocket_wrapper(f, upgrade_function):
-    @wraps(f)
-    async def wrapper(request, *args, **kwargs):
-        ws = await upgrade_function(request)
-        try:
-            await f(request, ws, *args, **kwargs)
-        except OSError as exc:
-            if exc.errno not in MUTED_SOCKET_ERRORS:  # pragma: no cover
-                raise
-        except WebSocketError:
-            pass
-        except Exception as exc:
-            print_exception(exc)
-        finally:  # pragma: no cover
-            try:
-                await ws.close()
-            except Exception:
-                pass
-        return Response.already_handled
-    return wrapper
 
 
 def with_websocket(f):
@@ -228,4 +172,4 @@ def with_websocket(f):
                 message = await ws.receive()
                 await ws.send(message)
     """
-    return websocket_wrapper(f, websocket_upgrade)
+    pass

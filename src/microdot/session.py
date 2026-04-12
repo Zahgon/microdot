@@ -15,11 +15,11 @@ class SessionDict(dict):
 
     def save(self):
         """Update the session cookie."""
-        self.request.app._session.update(self.request, self)
+        pass
 
     def delete(self):
         """Delete the session cookie."""
-        self.request.app._session.delete(self.request)
+        pass
 
 
 class Session:
@@ -95,11 +95,6 @@ class Session:
 
         encoded_session = self.encode(session)
 
-        @request.after_request
-        def _update_session(request, response):
-            response.set_cookie('session', encoded_session,
-                                **self.cookie_options)
-            return response
 
     def delete(self, request):
         """Remove the user session.
@@ -119,10 +114,7 @@ class Session:
         Calling this method adds a cookie removal header to the request
         currently being processed.
         """
-        @request.after_request
-        def _delete_session(request, response):
-            response.delete_cookie('session', **self.cookie_options)
-            return response
+        pass
 
     def encode(self, payload, secret_key=None):
         return jwt.encode(payload, secret_key or self.secret_key,
@@ -151,9 +143,4 @@ def with_session(f):
     Note that the decorator does not save the session. To update the session,
     call the :func:`session.save() <microdot.session.SessionDict.save>` method.
     """
-    @wraps(f)
-    async def wrapper(request, *args, **kwargs):
-        return await invoke_handler(
-            f, request, request.app._session.get(request), *args, **kwargs)
-
-    return wrapper
+    pass

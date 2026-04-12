@@ -62,131 +62,14 @@ class Microdot(BaseMicrodot):  # type: ignore[no-redef]
         self.lifespan_shutdown = lifespan_shutdown
         self.embedded_server = False
 
-    async def handle_lifespan(self, scope, receive, send):
-        while True:
-            message = await receive()
-            if message['type'] == 'lifespan.startup':
-                try:
-                    if self.lifespan_startup:
-                        await self.lifespan_startup(scope)
-                except Exception as e:
-                    await send({'type': 'lifespan.startup.failed',
-                                'message': repr(e)})
-                else:
-                    await send({'type': 'lifespan.startup.complete'})
-            elif message['type'] == 'lifespan.shutdown':  # pragma: no branch
-                try:
-                    if self.lifespan_shutdown:
-                        await self.lifespan_shutdown(scope)
-                except Exception as e:
-                    await send({'type': 'lifespan.shutdown.failed',
-                                'message': repr(e)})
-                else:
-                    await send({'type': 'lifespan.shutdown.complete'})
-                break
 
     async def asgi_app(self, scope, receive, send):
         """An ASGI application."""
-        if scope['type'] == 'lifespan':
-            return await self.handle_lifespan(scope, receive, send)
-        if scope['type'] not in ['http', 'websocket']:  # pragma: no cover
-            return
-        path = scope['path']
-        if 'query_string' in scope and scope['query_string']:
-            path += '?' + scope['query_string'].decode()
-        headers = NoCaseDict()
-        content_length = 0
-        for key, value in scope.get('headers', []):
-            key = key.decode().title()
-            headers[key] = value.decode()
-            if key == 'Content-Length':
-                content_length = int(value)
-
-        if content_length and content_length <= Request.max_body_length:
-            body = b''
-            more = True
-            while more:
-                packet = await receive()
-                body += packet.get('body', b'')
-                more = packet.get('more_body', False)
-            stream = None
-        else:
-            body = b''
-            stream = _BodyStream(receive)
-
-        req = Request(
-            self,
-            (scope['client'][0], scope['client'][1]),
-            scope.get('method', 'GET'),
-            path,
-            'HTTP/' + scope['http_version'],
-            headers,
-            body=body,
-            stream=stream,
-            sock=(receive, send),
-            scheme=scope.get('scheme'))
-        req.asgi_scope = scope
-
-        res = await self.dispatch_request(req)
-        res.complete()
-
-        header_list = []
-        for name, value in res.headers.items():
-            if not isinstance(value, list):
-                header_list.append((name.lower().encode(), value.encode()))
-            else:
-                for v in value:
-                    header_list.append((name.lower().encode(), v.encode()))
-
-        if scope['type'] != 'http':  # pragma: no cover
-            return
-
-        await send({'type': 'http.response.start',
-                    'status': res.status_code,
-                    'headers': header_list})
-
-        cancelled = False
-
-        async def cancel_monitor():
-            nonlocal cancelled
-
-            while True:
-                event = await receive()
-                if event is None or \
-                        event['type'] == 'http.disconnect':  # pragma: no cover
-                    cancelled = True
-                    break
-
-        monitor_task = asyncio.ensure_future(cancel_monitor())
-
-        body_iter = res.body_iter().__aiter__()
-        try:
-            while not cancelled:  # pragma: no branch
-                res_body = await body_iter.__anext__()
-                if isinstance(res_body, str):
-                    res_body = res_body.encode()
-                await send({'type': 'http.response.body',
-                            'body': res_body,
-                            'more_body': True})
-        except StopAsyncIteration:
-            pass
-        await send({'type': 'http.response.body',
-                    'body': b'',
-                    'more_body': False})
-        if hasattr(body_iter, 'aclose'):  # pragma: no branch
-            await body_iter.aclose()
-        cancelled = True
-        await monitor_task
+        pass
 
     async def __call__(self, scope, receive, send):
         return await self.asgi_app(scope, receive, send)
 
-    def shutdown(self):
-        if self.embedded_server:  # pragma: no cover
-            super().shutdown()
-        else:
-            pid = os.getpgrp() if hasattr(os, 'getpgrp') else os.getpid()
-            os.kill(pid, signal.SIGTERM)
 
     def run(self, host='0.0.0.0', port=5000, debug=False,
             **options):  # pragma: no cover
@@ -194,16 +77,10 @@ class Microdot(BaseMicrodot):  # type: ignore[no-redef]
         Instead, start your chosen ASGI web server and pass the ``Microdot``
         instance as the ASGI application.
         """
-        self.embedded_server = True
-        super().run(host=host, port=port, debug=debug, **options)
+        pass
 
 
 class WebSocket(BaseWebSocket):  # pragma: no cover
-    async def handshake(self):
-        connect = await self.request.sock[0]()
-        if connect['type'] != 'websocket.connect':
-            abort(400)
-        await self.request.sock[1]({'type': 'websocket.accept'})
 
     async def receive(self):
         message = await self.request.sock[0]()
@@ -246,15 +123,7 @@ async def websocket_upgrade(request):  # pragma: no cover
                 message = await ws.receive()
                 await ws.send(message)
     """
-    ws = WebSocket(request) if not request.app.embedded_server else \
-        BaseWebSocket(request)
-    await ws.handshake()
-
-    @request.after_request
-    async def after_request(request, response):
-        return Response.already_handled
-
-    return ws
+    pass
 
 
 def with_websocket(f):  # pragma: no cover
@@ -271,4 +140,4 @@ def with_websocket(f):  # pragma: no cover
                 message = await ws.receive()
                 await ws.send(message)
     """
-    return websocket_wrapper(f, websocket_upgrade)
+    pass

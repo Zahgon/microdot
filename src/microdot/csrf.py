@@ -47,45 +47,6 @@ class CSRF:
         """
         self.cors = cors
 
-        @app.before_request
-        async def csrf_before_request(request):
-            if (
-                self.protect_all
-                and request.method not in self.SAFE_METHODS
-                and request.route not in self.exempt_routes
-            ) or request.route in self.protected_routes:
-                allow = False
-                sfs = request.headers.get('Sec-Fetch-Site')
-                origin = request.headers.get('Origin')
-                if sfs:
-                    # if the Sec-Fetch-Site header was given, ensure it is not
-                    # cross-site
-                    if sfs in ['same-origin', 'none']:
-                        allow = True
-                    elif sfs == 'same-site' and self.allow_subdomains:
-                        allow = True
-                if not allow and origin and self.cors and \
-                        self.cors.allowed_origins != '*':
-                    # if we have a list of allowed origins, then we can
-                    # validate the origin
-                    if not self.allow_subdomains:
-                        allow = origin in self.cors.allowed_origins
-                    else:
-                        origin_scheme, origin_host = origin.split('://', 1)
-                        for allowed_origin in self.cors.allowed_origins:
-                            allowed_scheme, allowed_host = \
-                                allowed_origin.split('://', 1)
-                            if origin == allowed_origin or (
-                                origin_host.endswith('.' + allowed_host)
-                                and origin_scheme == allowed_scheme
-                            ):
-                                allow = True
-                                break
-                if not allow and not sfs and not origin:
-                    allow = True  # no headers to check
-
-                if not allow:
-                    abort(403, 'Forbidden')
 
     def exempt(self, f):
         """Decorator to exempt a route from CSRF protection.
@@ -99,8 +60,7 @@ class CSRF:
             def submit(request):
                 # ...
         """
-        self.exempt_routes.append(f)
-        return f
+        pass
 
     def protect(self, f):
         """Decorator to protect a route against CSRF attacks.
@@ -116,5 +76,4 @@ class CSRF:
             def get_data(request):
                 # ...
         """
-        self.protected_routes.append(f)
-        return f
+        pass

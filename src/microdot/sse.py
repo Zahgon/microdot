@@ -71,46 +71,7 @@ def sse_response(request, event_function, *args, **kwargs):
     endpoint. In general the :func:`microdot.sse.with_sse` decorator should be
     used instead.
     """
-    sse = SSE()
-
-    async def sse_task_wrapper():
-        try:
-            await event_function(request, sse, *args, **kwargs)
-        except asyncio.CancelledError:  # pragma: no cover
-            pass
-        except Exception as exc:
-            # the SSE task raised an exception so we need to pass it to the
-            # main route so that it is re-raised there
-            sse.queue.append(exc)
-        sse.event.set()
-
-    task = asyncio.create_task(sse_task_wrapper())
-
-    class sse_loop:
-        def __aiter__(self):
-            return self
-
-        async def __anext__(self):
-            event = None
-            while sse.queue or not task.done():
-                try:
-                    event = sse.queue.pop(0)
-                    break
-                except IndexError:
-                    await sse.event.wait()
-                    sse.event.clear()
-            if isinstance(event, Exception):
-                # if the event is an exception we re-raise it here so that it
-                # can be handled appropriately
-                raise event
-            elif event is None:
-                raise StopAsyncIteration
-            return event
-
-        async def aclose(self):
-            task.cancel()
-
-    return sse_loop(), 200, {'Content-Type': 'text/event-stream'}
+    pass
 
 
 def with_sse(f):
@@ -132,8 +93,4 @@ def with_sse(f):
             # send a named event
             await sse.send('hello', event='greeting')
     """
-    @wraps(f)
-    async def sse_handler(request, *args, **kwargs):
-        return sse_response(request, f, *args, **kwargs)
-
-    return sse_handler
+    pass

@@ -24,15 +24,6 @@ class BaseAuth:
         authentication callback returned a valid user object, otherwise the
         error callback will be executed.
         """
-        async def wrapper(request, *args, **kwargs):
-            auth = self._get_auth(request)
-            if not auth:
-                return await invoke_handler(self.error_callback, request)
-            request.g.current_user = await invoke_handler(
-                self.auth_callback, request, *auth)
-            if not request.g.current_user:
-                return await invoke_handler(self.error_callback, request)
-            return await invoke_handler(f, request, *args, **kwargs)
 
         return wrapper
 
@@ -43,16 +34,7 @@ class BaseAuth:
         meaning that the route is allowed to run with or with
         authentication given in the request.
         """
-        async def wrapper(request, *args, **kwargs):
-            auth = self._get_auth(request)
-            if not auth:
-                request.g.current_user = None
-            else:
-                request.g.current_user = await invoke_handler(
-                    self.auth_callback, request, *auth)
-            return await invoke_handler(f, request, *args, **kwargs)
-
-        return wrapper
+        pass
 
 
 class BasicAuth(BaseAuth):
@@ -74,21 +56,7 @@ class BasicAuth(BaseAuth):
         self.error_status = error_status
         self.error_callback = self.authentication_error
 
-    def _get_auth(self, request):
-        auth = request.headers.get('Authorization')
-        if auth and auth.startswith('Basic '):
-            import binascii
-            try:
-                username, password = binascii.a2b_base64(
-                    auth[6:]).decode().split(':', 1)
-            except Exception:  # pragma: no cover
-                return None
-            return username, password
 
-    async def authentication_error(self, request):
-        return '', self.error_status, {
-            'WWW-Authenticate': '{} realm="{}", charset="{}"'.format(
-                self.scheme, self.realm, self.charset)}
 
     def authenticate(self, f):
         """Decorator to configure the authentication callback.
@@ -103,7 +71,7 @@ class BasicAuth(BaseAuth):
                if user and user.check_password(password):
                    return get_user(username)
         """
-        self.auth_callback = f
+        pass
 
 
 class TokenAuth(BaseAuth):
@@ -123,18 +91,6 @@ class TokenAuth(BaseAuth):
         self.error_status = error_status
         self.error_callback = self.authentication_error
 
-    def _get_auth(self, request):
-        auth = request.headers.get(self.header)
-        if auth:
-            if self.header == 'Authorization':
-                try:
-                    scheme, token = auth.split(' ', 1)
-                except Exception:
-                    return None
-                if scheme.lower() == self.scheme:
-                    return (token.strip(),)
-            else:
-                return (auth,)
 
     def authenticate(self, f):
         """Decorator to configure the authentication callback.
@@ -147,7 +103,7 @@ class TokenAuth(BaseAuth):
            async def check_credentials(request, token):
                return get_user(token)
         """
-        self.auth_callback = f
+        pass
 
     def errorhandler(self, f):
         """Decorator to configure the error callback.
@@ -156,7 +112,5 @@ class TokenAuth(BaseAuth):
         a custom error response. The default error response is to call
         ``abort(401)``.
         """
-        self.error_callback = f
+        pass
 
-    async def authentication_error(self, request):
-        abort(self.error_status)

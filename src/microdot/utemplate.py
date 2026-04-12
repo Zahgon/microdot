@@ -36,35 +36,19 @@ class Template:
     def generate(self, *args, **kwargs):
         """Return a generator that renders the template in chunks, with the
         given arguments."""
-        return self.template(*args, **kwargs)
+        pass
 
     def render(self, *args, **kwargs):
         """Render the template with the given arguments and return it as a
         string."""
-        return ''.join(self.generate(*args, **kwargs))
+        pass
 
     def generate_async(self, *args, **kwargs):
         """Return an asynchronous generator that renders the template in
         chunks, using the given arguments."""
-        class sync_to_async_iter():
-            def __init__(self, iter):
-                self.iter = iter
-
-            def __aiter__(self):
-                return self
-
-            async def __anext__(self):
-                try:
-                    return next(self.iter)
-                except StopIteration:
-                    raise StopAsyncIteration
-
-        return sync_to_async_iter(self.generate(*args, **kwargs))
+        pass
 
     async def render_async(self, *args, **kwargs):
         """Render the template with the given arguments asynchronously and
         return it as a string."""
-        response = ''
-        async for chunk in self.generate_async(*args, **kwargs):
-            response += chunk
-        return response
+        pass

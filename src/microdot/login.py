@@ -20,43 +20,11 @@ class Login:
         return the corresponding user object, or ``None`` if the user ID is
         invalid.
         """
-        self.user_loader_callback = f
+        pass
 
-    def _get_session(self, request):
-        return request.app._session.get(request)
 
-    def _update_remember_cookie(self, request, days, user_id=None):
-        remember_payload = request.app._session.encode({
-            'user_id': user_id,
-            'days': days,
-            'exp': time() + days * 24 * 60 * 60
-        })
 
-        @request.after_request
-        async def _set_remember_cookie(request, response):
-            response.set_cookie('_remember', remember_payload,
-                                max_age=days * 24 * 60 * 60)
-            return response
 
-    def _get_user_id_from_session(self, request):
-        session = self._get_session(request)
-        if session and '_user_id' in session:
-            return session['_user_id']
-        if '_remember' in request.cookies:
-            remember_payload = request.app._session.decode(
-                request.cookies['_remember'])
-            user_id = remember_payload.get('user_id')
-            if user_id:  # pragma: no branch
-                self._update_remember_cookie(
-                    request, remember_payload.get('_days', 30), user_id)
-                session['_user_id'] = user_id
-                session['_fresh'] = False
-                session.save()
-                return user_id
-
-    async def _redirect_to_login(self, request):
-        return '', 302, {'Location': self.login_url + '?next=' + urlencode(
-            request.url)}
 
     async def login_user(self, request, user, remember=False,
                          redirect_url='/'):
@@ -78,20 +46,7 @@ class Login:
         originally intended to visit, or if there is no original URL to the URL
         specified by the `redirect_url`.
         """
-        session = self._get_session(request)
-        session['_user_id'] = user.id
-        session['_fresh'] = True
-        session.save()
-        request.g.current_user = user
-
-        if remember:
-            days = 30 if remember is True else int(remember)
-            self._update_remember_cookie(request, days, session['_user_id'])
-
-        next_url = request.args.get('next', redirect_url)
-        if not next_url.startswith('/'):
-            next_url = redirect_url
-        return redirect(next_url)
+        pass
 
     async def logout_user(self, request):
         """Log a user out.
@@ -101,24 +56,11 @@ class Login:
         This call removes information about the user's log in from the user
         session. If a remember cookie exists, it is removed as well.
         """
-        session = self._get_session(request)
-        session.pop('_user_id', None)
-        session.pop('_fresh', None)
-        session.save()
-        request.g.current_user = None
-        if '_remember' in request.cookies:
-            self._update_remember_cookie(request, 0)
+        pass
 
     async def get_current_user(self, request):
         """Return the currently logged in user."""
-        if not hasattr(request.g, 'current_user'):
-            user_id = self._get_user_id_from_session(request)
-            if user_id:
-                request.g.current_user = await invoke_handler(
-                    self.user_loader_callback, user_id)
-            else:
-                request.g.current_user = None
-        return request.g.current_user
+        pass
 
     def __call__(self, f):
         """Decorator to protect a route with authentication.
@@ -136,11 +78,6 @@ class Login:
                 # only accessible to authenticated users
 
         """
-        async def wrapper(request, *args, **kwargs):
-            user = await self.get_current_user(request)
-            if not user:
-                return await self._redirect_to_login(request)
-            return await invoke_handler(f, request, *args, **kwargs)
 
         return wrapper
 
@@ -161,12 +98,4 @@ class Login:
                 # users logged in via remember me cookie will need to
                 # re-authenticate
         """
-        base_wrapper = self.__call__(f)
-
-        async def wrapper(request, *args, **kwargs):
-            session = self._get_session(request)
-            if session.get('_fresh'):
-                return await base_wrapper(request, *args, **kwargs)
-            return await self._redirect_to_login(request)
-
-        return wrapper
+        pass
